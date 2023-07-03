@@ -30,7 +30,7 @@ def main():
         page_icon='📈'
     )
 
-    st.title('DP2 Distance')
+    st.title('DP2 METHOD')
     st.sidebar.success('Menu')
 
     st.sidebar.subheader("choose your file")
