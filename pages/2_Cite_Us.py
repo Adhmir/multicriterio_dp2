@@ -2,7 +2,7 @@ import streamlit as st
 
 
 st.set_page_config(
-    page_title="ApoioDecisao",
+    page_title="PerformanceMesasures",
     page_icon='📈'
 )
 
