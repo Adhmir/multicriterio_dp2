@@ -2,14 +2,14 @@ import streamlit as st
 
 
 st.set_page_config(
-    page_title="PerformanceMeasures",
+    page_title="Performance Measures",
     page_icon='📈'
 )
 
 
 st.title('How cite us')
 cont1 =st.container()
-cont1.write('Gomes, A. R. V. & Hein, N. (2023). Multiple Criteria Perfomance Measures - DP2 [Web streamlit app]. https://performancemesasures-dp2.streamlit.app/')
+cont1.write('Gomes, A. R. V. & Hein, N. (2023). Multiple Criteria Perfomance Measures - DP2 [Web streamlit app]. https://performancemeasures-dp2.streamlit.app/')
 
             
 st.subheader('About the Authors')
