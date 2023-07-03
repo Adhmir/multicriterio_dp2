@@ -30,7 +30,8 @@ def main():
         page_icon='📈'
     )
 
-    st.title('DP2 METHOD')
+    st.title('MULTIPLE CRITERA PERFORMANCE MEASURES - DP2')
+    st.subheader('DP2 METHOD')
     st.sidebar.success('Menu')
 
     st.sidebar.subheader("choose your file")
