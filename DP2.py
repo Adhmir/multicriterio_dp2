@@ -1,116 +1,315 @@
-import streamlit as st
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jun 25 12:48:58 2026
+
+@author: adh_r
+"""
+
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jun 25 14:17:29 2021
+
+@author: Adhmir Renan Voltolini Gomes
+
+Algoritmo para cálculo do DP2
+"""
+
+"""
+A distância DP2 é um indicador sintético elaborado por Trapero (1977) que tem
+por finalidade a comparação interespacial e/ou intertemporal de variáveis. Há
+duas vantagens inerentes ao método: o primeiro é a atribuição de pontuação a
+cada elemento envolvido na análise, formando um ranking dos elementos
+envolvidos frente o que a realidade permite, ou seja, o método trabalha com
+pontos de referência hierarquicamente construídos. A segunda vantagem é a
+possibilidade da mensuração de disparidades entre os envolvidos.
+
+Em linhas gerais pode-se formular o algoritmo para o cálculo do DP2 como segue:
+
+1º Estabelecimento da matriz de valores das componentes das m empresas envolvidas.
+2º Verificar os critérios das n variáveis envolvidas quanto a sua conduta,
+   ou seja, classificar as variáveis quanto a seu objetivo: “quanto maior, melhor”
+   ou “quanto menor, melhor”;
+3º Eleição da base de referência em cada variável, determinando seu ideal teórico;
+
+Todavia, esses passos não serão abordados aqui. Embora seja possível direcionar
+o segundo passo, neste algoritmo espera-se que o conjunto de dados já tenha sido
+construído.
+
+Problemas de la medición del bienestar y conceptos afines:
+una aplicación al caso español.
+Madrid: Presidencia del Gobierno, Instituto Nacional de Estadística.
+"""
+
+# =============================================================================
+# Leitura do conjunto de dados
+# =============================================================================
+
 import pandas as pd
 import numpy as np
-import metodos.normalizarDados as nmd
-import metodos.algoritmo_dp2_1 as dp2
 
-import io
+# df = pd.read_excel('C:/PHD/Disciplinas/06 - Analise Decisoria/Artigo fama multicriterio/Python DP2/df_dp2.xlsx')
 
-exemploDados = {
-  "Opções": ['Alternativa A', 'Alternativa B', 'Alternativa C'],
-  "Critério A": [50, 40, 85],
-  "Critério B": [60, 20, 50],
-  "Critério C": [40, 30, 70]
-}
-df = pd.DataFrame(exemploDados)
+# Remover a coluna das empresas para manter apenas os vetores numéricos
+# df = df.drop(["Empresa"], axis=1)
+# df = pd.read_excel('C:/PHD/Disciplinas/06 - Analise Decisoria/Adriana_df.xlsx')
 
-normalizados = pd.DataFrame([])
-listaNormalizar = []
-istacategorias = [] 
-listaNormalizarMaior = [] 
-listaNormalizarMenor = []
-pesos = 1
+# =============================================================================
+# 4º Calcular as distâncias de Frechet
+# (|xij-maximo|)/std
+# Exemplo: (|1,5-1,2|)/0.383406
+# =============================================================================
 
-def main():
-    global df, listaNormalizar, normalizados, pesos
-    global listacategorias, listaNormalizarMaior, listaNormalizarMenor
+def frechet(df):
+    x = df.copy()
 
-    st.set_page_config(
-        page_title="Performance Measures",
-        page_icon='📈'
+    for i in range(len(x.columns)):
+        df_refer = x.copy()
+
+        for j in range(len(x)):
+            xij = x.iloc[j, i:i+1].values
+            maximo = df_refer[df_refer.columns[i:i+1]].max()
+            std = df_refer[df_refer.columns[i:i+1]].std()
+
+            valor = (np.abs(xij - maximo)) / std
+
+            x.iloc[j, i:i+1] = valor
+
+    return x
+
+
+# =============================================================================
+# 5º Ordenação das componentes de maior para menor
+# =============================================================================
+
+def ordemfrechet(x):
+
+    # Parte alterada devido à atualização da linguagem Python.
+    ordem_frechet = x.sum(axis=0).sort_values(
+        ascending=False
+    ).rename("Distancia")
+
+    ordem_frechet = pd.DataFrame(ordem_frechet).reset_index()
+
+    return ordem_frechet
+
+
+def modelos(x):
+
+    ordem_frechet = ordemfrechet(x)
+
+    modelos = []
+
+    for i in range(len(x.columns)):
+
+        ordem_modelos = ordem_frechet.loc[0:i, ['index']].values
+
+        if i > 0:
+            modelos.append(ordem_modelos)
+
+    return modelos
+
+
+# =============================================================================
+# 6º Obtenção do R² segundo a hierarquia definida
+# =============================================================================
+
+def rquadrado(x):
+
+    df_frechet = frechet(x)
+    lista_modelos = modelos(df_frechet)
+
+    v1_r2 = [1.000]
+
+    constante = np.ones((len(x), 1))
+
+    for i in range(len(x.columns) - 1):
+
+        dependente = pd.Series(
+            np.reshape(lista_modelos[i][-1], -1)
+        )
+
+        independentes = pd.Series(
+            np.reshape(
+                lista_modelos[i][0:len(lista_modelos[i]) - 1],
+                -1
+            )
+        )
+
+        Vetores_y = x[dependente]
+
+        Vetores_X_const = pd.DataFrame(constante)
+
+        Vetores_X = x[independentes]
+
+        Vetores_X = pd.concat(
+            [Vetores_X_const, Vetores_X],
+            ignore_index=True,
+            axis=1
+        )
+
+        regression = np.dot(
+            np.linalg.inv(
+                np.dot(Vetores_X.T, Vetores_X)
+            ),
+            np.dot(Vetores_X.T, Vetores_y)
+        )
+
+        # Parte alterada devido à atualização da linguagem Python.
+        yhat = np.sum(
+            (regression.T * Vetores_X).to_numpy(),
+            axis=1
+        )
+
+        # Parte alterada devido à atualização da linguagem Python.
+        ybar = Vetores_y.sum(axis=0) / len(Vetores_y)
+
+        error_total = (yhat - ybar.values) ** 2
+
+        # Parte alterada devido à atualização da linguagem Python.
+        soma_quadrado_total = error_total.sum()
+
+        error_res = (
+            np.array(Vetores_y)
+            - np.array(yhat).reshape(-1, 1)
+        )
+
+        # Parte alterada devido à atualização da linguagem Python.
+        soma_residuo_total = (error_res ** 2).sum()
+
+        r2_modelos = (
+            1 - (
+                soma_residuo_total /
+                (soma_residuo_total + soma_quadrado_total)
+            )
+        )
+
+        fator_1r = 1 - r2_modelos
+
+        v1_r2.append(fator_1r)
+
+    return v1_r2
+
+
+# =============================================================================
+# 7º Ponderação dos pesos de acordo com os R²
+# =============================================================================
+
+'''
+df = pd.read_excel(
+    'C:/Users/Usuario/Desktop/DP2 exemplo/DP2 exemplo.xlsx'
+)
+
+df_frechet = frechet(df)
+lista_modelos = modelos(df_frechet)
+
+df_frechet = frechet(df)
+
+ordem_de_frechet = ordemfrechet(df_frechet)
+
+ordem_modelos = pd.Series(
+    np.reshape(
+        ordem_de_frechet.loc[:, ['index']].values,
+        -1
+    )
+)
+
+ordem_modelos = ordem_modelos.to_list()
+
+Vetores = df_frechet[ordem_modelos]
+Vetores = Vetores.add_suffix('_frechet')
+
+lista_r2 = np.array(
+    rquadrado(df_frechet)
+).reshape(1, -1)
+
+valor_dp2 = np.sum(
+    (Vetores * lista_r2).to_numpy(),
+    axis=1
+)
+
+dp2 = pd.concat(
+    [df, Vetores, valor_dp2],
+    axis=1
+)
+
+x1 = dp2.columns.to_list()
+x1[len(x1) - 1] = "DP2"
+
+dp2.columns = x1
+
+dp2['Ranking'] = dp2['DP2'].rank(
+    ascending=False
+)
+'''
+
+
+def calculo_DP2(categorias, x):
+
+    df_frechet = frechet(x)
+
+    ordem_de_frechet = ordemfrechet(df_frechet)
+
+    ordem_modelos = pd.Series(
+        np.reshape(
+            ordem_de_frechet.loc[:, ['index']].values,
+            -1
+        )
     )
 
-    st.title('MULTIPLE CRITERA PERFORMANCE MEASURES - DP2')
-    st.subheader('DP2 METHOD')
-    st.sidebar.success('Menu')
+    ordem_modelos = ordem_modelos.to_list()
 
-    st.sidebar.subheader("choose your file")
-    cont = st.container()
-    col1, col2, col3 = st.columns(3)
-    cont2 = st.container()
-    col4, col5, col6, col7, col8 = st.columns(5)
-    
-    
-    cont3 = st.container()
-    cont4 = st.container()
-    cont5 = st.container()
-    
-    
-    arquivoUpload = st.sidebar.file_uploader(label="Upload xlsx",  ) 
-    
-    if arquivoUpload is not None:
-       
-        try:
-            df = pd.read_excel(arquivoUpload, engine = "openpyxl")
-        except Exception as e:
-            print(e)
-            df = pd.read_csv(arquivoUpload)
-        try:
-            cont.dataframe(df)
-        except Exception as e:
-            print(e)
-            st.write('Please upload your data')
-        opcoes1 = col1.multiselect('Select the control columns', df.columns)
-        listacategorias = opcoes1
-        opcoes2 = col2.multiselect('Normalize BIGGER BETTER', df.drop(opcoes1, axis=1).columns)
-        listaNormalizarMaior = opcoes2
+    Vetores = df_frechet[ordem_modelos]
 
-        opcoes3 = col3.multiselect('Normalize LOWER BETTER',  df.drop(opcoes1+opcoes2, axis=1).columns)
-        listaNormalizarMenor = opcoes3
-        
-        btnCalcular = cont4.button('DP2')
-        
-        if btnCalcular: 
-            try:
-                normalizados = nmd.normalizar(df[listacategorias], 
-                                              df[listaNormalizarMaior],
-                                              df[listaNormalizarMenor])
-                
-                print(normalizados.head())
-                print()
-                print(pesos)
-                print()
-                metododp2 = dp2.calculo_DP2(normalizados[listacategorias],
-                                            normalizados[listaNormalizarMaior+listaNormalizarMenor])
-                print(metododp2.head())
-                cont5.dataframe(metododp2.style.highlight_max(axis=0))
-                    
-                st.download_button(
-                        label= "Download",
-                        data= criar_excel(metododp2),
-                        file_name ='DP2.xlsx',
-                        mime="application/vnd.ms-excel",)               
-                
-                                 
-            except Exception as e:
-                st.write('Please check selected columns.')
-        
-def criar_excel(dados):
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer) as writer:
-        dados.to_excel(writer)
-    return buffer
+    Vetores = Vetores.add_suffix('_frechet')
 
-def LstPesosConstante(tam):
-    colunas = tam.columns
-    wth = list([1]*len(tam.columns))
-    dfConstante = pd.DataFrame(wth).transpose()
-    dfConstante.columns = colunas
-    dfConstante.index = ['w']
-    
-    
-    return dfConstante, wth
+    lista_1_r2 = np.array(
+        rquadrado(df_frechet)
+    ).reshape(1, -1)
 
-if __name__ == '__main__':
-    main()
-        
+    # Parte alterada devido à atualização da linguagem Python.
+    valor_dp2 = np.sum(
+        (Vetores * lista_1_r2).to_numpy(),
+        axis=1
+    )
+
+    dp2 = pd.concat(
+        [categorias, x.copy(), Vetores, pd.Series(valor_dp2)],
+        axis=1
+    )
+
+    x1 = dp2.columns.to_list()
+
+    x1[len(x1) - 1] = "DP2"
+
+    dp2.columns = x1
+
+    # Parte alterada devido à atualização da linguagem Python.
+    dp2['DP2'] = (
+        dp2['DP2'].min() +
+        dp2['DP2'].max()
+    ) - dp2['DP2']
+
+    dp2['Ranking'] = dp2['DP2'].rank(
+        method='min',
+        ascending=False
+    )
+
+    # dp2['Empresas'] = df["Empresa"]
+    # dp2 = dp2.sort_values(by=['Ranking'])
+
+    return dp2
+
+
+# =============================================================================
+# Exemplos de uso
+# =============================================================================
+
+# df = pd.read_excel(
+#     'C:/Users/Usuario/Desktop/DP2 exemplo/Dp2_df.xlsx'
+# )
+
+# df = pd.read_excel(
+#     'C:/Users/Usuario/Desktop/DP2 exemplo/DP2 exemplo.xlsx'
+# )
+
+# resultado = calculo_DP2(categorias, df.copy())
